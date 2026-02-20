@@ -35,5 +35,7 @@ namespace BibliotecaVirtual.Models
         [Required(ErrorMessage = "La calificación es obligatoria")]
         [Range(1.0, 3.0, ErrorMessage = "La calificación debe estar entre 1 y 3")]
         public int Calificación { get; set; }
+
+        public string? ImagenUrl { get; set; }
     }
 }

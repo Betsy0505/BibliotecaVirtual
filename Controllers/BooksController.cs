@@ -39,38 +39,63 @@ namespace BibliotecaVirtual.Controllers
 
         // POST api/<BooksController> -> guardar un libro
         [HttpPost]
-        public async Task<ActionResult<Book>> Post([FromBody] Book book)
+        // [FromForm] permite recibir archivos y texto al mismo tiempo
+        public async Task<ActionResult<Book>> Post([FromForm] Book book, IFormFile? file)
         {
+            if (file != null && file.Length > 0)
+            {
+                // 1. Definir la carpeta (asegúrate de que existe wwwroot/uploads)
+                string folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                // 2. Generar nombre único para evitar que se sobrescriban
+                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                string path = Path.Combine(folder, fileName);
+
+                // 3. Guardar el archivo en el servidor
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // 4. Guardar la ruta en la base de datos
+                book.ImagenUrl = $"/uploads/{fileName}";
+            }
+
             _context.Books.Add(book);
             await _context.SaveChangesAsync();
 
-            // vamos a retornar el libro creado y su ubicacion
             return CreatedAtAction(nameof(Get), new { id = book.Id }, book);
         }
 
         // PUT api/<BooksController>/5 -> actualizar un libro existente
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Book book) {
-            if (id != book.Id)
+        public async Task<IActionResult> Put(int id, [FromForm] Book book, IFormFile? file)
+        {
+            if (id != book.Id) return BadRequest(new { mensaje = "El id no coincide" });
+
+            // Si el usuario sube una nueva imagen
+            if (file != null && file.Length > 0)
             {
-                return BadRequest(new { mensaje = "El id no coinicide" });
+                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                string path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", fileName);
+
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+                book.ImagenUrl = $"/uploads/{fileName}";
             }
 
             _context.Entry(book).State = EntityState.Modified;
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
+            // Evitamos que EF borre la imagen anterior si no enviamos una nueva en el formulario
+            if (string.IsNullOrEmpty(book.ImagenUrl))
+                _context.Entry(book).Property(x => x.ImagenUrl).IsModified = false;
 
-            catch (DbUpdateConcurrencyException)
-            {
-                if(!_context.Books.Any(e => e.Id == id))
-                {
-                    return NotFound();
-                }
-                else { throw; }
-            }
+            try { await _context.SaveChangesAsync(); }
+            catch (DbUpdateConcurrencyException) { /* lógica de error */ }
+
             return NoContent();
         }
 
@@ -88,6 +113,25 @@ namespace BibliotecaVirtual.Controllers
 
             return Ok(new { mensaje = " Libro eliminado correctamente" } );
 
+        }
+
+        [HttpPost("upload-image")]
+        public async Task<IActionResult> UploadImage(IFormFile file)
+        {
+            if (file == null || file.Length == 0) return BadRequest("No se seleccionó archivo.");
+
+            // Crear un nombre único para la imagen
+            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+            string path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads", fileName);
+
+            using (var stream = new FileStream(path, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Retornamos la URL para guardarla luego en el libro
+            var url = $"/uploads/{fileName}";
+            return Ok(new { url });
         }
     }
 }
