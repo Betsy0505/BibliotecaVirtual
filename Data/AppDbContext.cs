@@ -1,4 +1,5 @@
 ﻿using BibliotecaVirtual.Models;
+using BibliotecaVirtual.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace BibliotecaVirtual.Data

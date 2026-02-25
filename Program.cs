@@ -3,21 +3,29 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Configuración de la Base de Datos
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Add services to the container.
+// 2. CONFIGURACIÓN DE CORS (Indispensable para Blazor)
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// 3. Configuración del pipeline (EL ORDEN IMPORTA)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -26,10 +34,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// 4. HABILITAR ARCHIVOS ESTÁTICOS (Para ver las imágenes)
+app.UseStaticFiles();
+
+// 5. HABILITAR CORS (Debe ir después de StaticFiles y antes de MapControllers)
+app.UseCors();
+
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.UseStaticFiles();
 
 app.Run();

@@ -1,12 +1,12 @@
 ﻿using BibliotecaVirtual.Data;
-using BibliotecaVirtual.Models;
+using BibliotecaVirtual.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BibliotecaVirtual.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
+    [ApiController] 
     public class BooksController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -25,7 +25,7 @@ namespace BibliotecaVirtual.Controllers
 
         // GET api/<BooksController>/5 -> obtener un libro por id 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Book>> Get(int id)
+        public async Task<ActionResult<Book>> GetBook(int id)
         {
             var book = await _context.Books.FindAsync(id);
 
@@ -39,33 +39,34 @@ namespace BibliotecaVirtual.Controllers
 
         // POST api/<BooksController> -> guardar un libro
         [HttpPost]
-        // [FromForm] permite recibir archivos y texto al mismo tiempo
-        public async Task<ActionResult<Book>> Post([FromForm] Book book, IFormFile? file)
+        public async Task<ActionResult<Book>> PostBook([FromForm] Book book, IFormFile? file)
         {
+            // 1. Si hay un archivo, lo guardamos físicamente
             if (file != null && file.Length > 0)
             {
-                // 1. Definir la carpeta (asegúrate de que existe wwwroot/uploads)
-                string folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                // Creamos la ruta de la carpeta wwwroot/uploads
+                var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
-                // 2. Generar nombre único para evitar que se sobrescriban
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                string path = Path.Combine(folder, fileName);
+                if (!Directory.Exists(folderPath))
+                    Directory.CreateDirectory(folderPath);
 
-                // 3. Guardar el archivo en el servidor
-                using (var stream = new FileStream(path, FileMode.Create))
+                // Generamos un nombre único para que no se sobrescriban fotos con el mismo nombre
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                var filePath = Path.Combine(folderPath, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                // 4. Guardar la ruta en la base de datos
-                book.ImagenUrl = $"/uploads/{fileName}";
+                // 2. Guardamos LA RUTA en la propiedad del objeto que irá a la BD
+                book.ImagenUrl = "/uploads/" + fileName;
             }
 
             _context.Books.Add(book);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Get), new { id = book.Id }, book);
+            return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);
         }
 
         // PUT api/<BooksController>/5 -> actualizar un libro existente

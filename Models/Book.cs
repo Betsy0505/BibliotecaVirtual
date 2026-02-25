@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BibliotecaVirtual.Models
+namespace BibliotecaVirtual.Shared
 {
     public class Book
     {

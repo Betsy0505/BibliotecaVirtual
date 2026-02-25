@@ -23,4 +23,8 @@
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BibliotecaVirtual.Shared\BibliotecaVirtual.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
