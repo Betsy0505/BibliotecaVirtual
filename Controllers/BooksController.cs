@@ -71,32 +71,29 @@ namespace BibliotecaVirtual.Controllers
 
         // PUT api/<BooksController>/5 -> actualizar un libro existente
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, [FromForm] Book book, IFormFile? file)
+        public async Task<IActionResult> PutBook(int id, [FromForm] Book book, IFormFile? file)
         {
-            if (id != book.Id) return BadRequest(new { mensaje = "El id no coincide" });
+            if (id != book.Id) return BadRequest();
 
-            // Si el usuario sube una nueva imagen
-            if (file != null && file.Length > 0)
+            var libroExistente = await _context.Books.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id);
+            if (libroExistente == null) return NotFound();
+
+            if (file != null)
             {
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                string path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", fileName);
-
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-                book.ImagenUrl = $"/uploads/{fileName}";
+                // Lógica para guardar la nueva foto (igual que en el POST)
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads", fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create)) { await file.CopyToAsync(stream); }
+                book.ImagenUrl = "/uploads/" + fileName;
+            }
+            else
+            {
+                // Si no subió foto nueva, mantenemos la anterior
+                book.ImagenUrl = libroExistente.ImagenUrl;
             }
 
             _context.Entry(book).State = EntityState.Modified;
-
-            // Evitamos que EF borre la imagen anterior si no enviamos una nueva en el formulario
-            if (string.IsNullOrEmpty(book.ImagenUrl))
-                _context.Entry(book).Property(x => x.ImagenUrl).IsModified = false;
-
-            try { await _context.SaveChangesAsync(); }
-            catch (DbUpdateConcurrencyException) { /* lógica de error */ }
-
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
